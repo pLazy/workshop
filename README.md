@@ -1,4 +1,5 @@
-# Downloading and preparing the data:
+# Generation of prompt
+## Downloading and preparing the data:
 
 - Downloaded the data from https://www.kaggle.com/datasets/seanlahman/the-history-of-baseball 
 - Cloned the https://github.com/benhamner/baseball.git found from the kaggle page
@@ -10,7 +11,7 @@
     - Create database: sqlite3 baseball.db < src/import.sql
 
 
-# Creating the prompt
+## Creating the prompt
 - Create a connection to the database
 - Read from the schema of the database
 - Write down the first version of prompt with the create_prompt.py 
