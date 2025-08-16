@@ -173,3 +173,20 @@ with db_loader as db:
             print(f"| {column['name']} | {column['type']} | {constraint_str} |")
 
 # %%
+
+
+query = """
+  SELECT p.name_first || ' ' || p.name_last AS player_name,
+       a.league_id
+  FROM all_star a
+  JOIN player p ON a.player_id = p.player_id
+"""
+with db_loader as db:
+    for table in results:
+        
+        # Get table column information
+        current_table_info = db.execute_query(query)
+        print(current_table_info)
+        break
+
+# %%

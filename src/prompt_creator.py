@@ -62,8 +62,7 @@ Given the text: "Show which players participated in the All-Star game."
 The SQL query should be:
 
 ```sql
-  SELECT p.name_first || ' ' || p.name_last AS player_name,
-       t.name AS team_name,
+  SELECT DISTINCT p.name_first || ' ' || p.name_last AS player_name,
        a.league_id
   FROM all_star a
   JOIN player p ON a.player_id = p.player_id
@@ -101,10 +100,4 @@ if __name__ == "__main__":
     prompt = create_prompt(md_str)
     with open("prompt.md", "w", encoding="utf-8") as f:
         f.write(prompt)
-    
-    
-#%%
-
-#%%
-
-#%%
+ 
