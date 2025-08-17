@@ -190,3 +190,19 @@ with db_loader as db:
         break
 
 # %%
+import pandas as pd
+
+df1 = pd.DataFrame([
+    {'name': 'Alice', 'age': 25},
+    {'name': 'Alice', 'age': 25},
+])
+
+
+df2 = pd.DataFrame([
+    {'name': 'Alice', 'age': 25},
+    {'name': 'Alice', 'age': 25},
+])
+
+df1.merge(df2, on='name', how='inner')
+
+# %%

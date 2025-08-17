@@ -2,47 +2,98 @@ from src.database.db_loader import DatabaseLoader
 import json
 import os
 from pathlib import Path
+import pandas as pd
 
 
-def get_sql_jaccard_similarity(db, gt_sql, llm_sql):
-    # First, let's get the column count of both queries
-    # We'll use a simpler approach that doesn't rely on INTERSECT/UNION with different column counts
+def get_found_elems(source_df, target_df):
+    """
+    Returns the number of elements in target_df that are also in source_df divided by the number of elements in target_df.
+    """
+    target_columns = set(target_df.columns)
+    common_columns = set(target_df.columns).intersection(set(source_df.columns))
+    if common_columns != target_columns:
+        return 0
+    else:
+        target_list = list(map(tuple, target_df.itertuples(index=False)))
+        source_list = list(map(tuple, source_df[target_df.columns].itertuples(index=False)))
+        
+        source_set = set(source_list)
+        
+        # Count matching rows (considering duplicates)
+        matching_rows_count = sum(1 for row in target_list if row in source_set)
+        return matching_rows_count/len(target_list)
+
+
+def get_precision_recall(db, gt_query, llm_query):
+    gt_results = db.execute_query(gt_query)
+    llm_results = db.execute_query(llm_query)
     
-    # Get the results of both queries
+    precision = get_found_elems(pd.DataFrame(llm_results), pd.DataFrame(gt_results))
+    recall = get_found_elems(pd.DataFrame(gt_results), pd.DataFrame(llm_results))
+    return precision, recall
+    """ gt_df = pd.DataFrame(gt_results)
+    llm_df = pd.DataFrame(llm_results)
+    common_columns = set(gt_df.columns).intersection(set(llm_df.columns))
+    all_columns = set(gt_df.columns).union(set(llm_df.columns))
+    gt_columns = set(gt_df.columns)
+    if common_columns != gt_columns:
+        return 0
+    else:
+        gt_list = list(map(tuple, gt_df.itertuples(index=False)))
+        llm_list = list(map(tuple, llm_df[gt_df.columns].itertuples(index=False)))
+        
+        llm_set = set(llm_list)
+        
+        # Count matching rows (considering duplicates)
+        matching_rows_count = sum(1 for row in gt_list if row in llm_set)
+        print(matching_rows_count)
+        print(len(gt_list))
+        # Calculate precision
+        if len(gt_list) == 0:
+            return 1.0 if len(llm_list) == 0 else 0.0
+        else:
+            return matching_rows_count / len(gt_list) """
+        
+        
+    
+
+
+
+
+def get_jaccard_similarity(db, gt_query, llm_query):
     try:
-        gt_results = db.execute_query(gt_sql)
-        llm_results = db.execute_query(llm_sql)
+        gt_results = db.execute_query(gt_query)
+        llm_results = db.execute_query(llm_query)
         
-        # Convert results to sets of tuples for comparison
-        # Handle different column structures by converting to string representation
-        gt_set = set()
-        for row in gt_results:
-            # Convert row values to a tuple of strings for comparison
-            for (key, value) in row.items():
-                gt_set.add((key, value))
+        gt_df = pd.DataFrame(gt_results)
+        llm_df = pd.DataFrame(llm_results)
+        common_columns = list(set(gt_df.columns).intersection(set(llm_df.columns)))
+        all_columns = list(set(gt_df.columns).union(set(llm_df.columns)))
+        gt_common = gt_df[common_columns]
+        llm_common = llm_df[common_columns]
         
-        llm_set = set()
-        for row in llm_results:
-            # Convert row values to a tuple of strings for comparison
-            for (key, value) in row.items():
-                llm_set.add((key, value))
+        gt_list = list(map(tuple, gt_common.itertuples(index=False)))
+        llm_list = list(map(tuple, llm_common.itertuples(index=False)))
         
-        #print(gt_set)
-        #print(llm_set)
-        # Calculate Jaccard similarity
-        intersection_size = len(gt_set.intersection(llm_set))
-        print(intersection_size)
-        union_size = len(gt_set.union(llm_set))
-        print(union_size)
-        if union_size == 0:
-            return 0.0
+        gt_set = set(gt_list)
+        llm_set = set(llm_list)
         
-        jaccard_similarity = intersection_size / union_size
-        return jaccard_similarity
+        # Why not use the intersection of sets or dataframes? because it doesnt work with duplicates
+        matching_rows_count = sum(1 for row in gt_list if row in llm_set)
+        matching_rows_count_llm = sum(1 for row in llm_list if row in gt_set)
+
         
+        numerator = max(matching_rows_count, matching_rows_count_llm)
+        denominator = len(gt_list) * len(all_columns) / len(common_columns) 
+        if denominator == 0:
+            return 0
+        else:
+            return numerator / denominator
     except Exception as e:
-        print(f"Error calculating Jaccard similarity: {e}")
-        return None
+        print(e)
+        return 0
+    
+
 
 if __name__ == "__main__":
     sqlite_path = "/Users/andirexha/Documents/presentations/20.08.2025/db_creation/baseball/baseball.db"
@@ -55,13 +106,17 @@ if __name__ == "__main__":
     llm_results = json.loads(text)
     
     with db_loader as db:
+        sum_similarity = 0
         for i in range(len(ground_truths)):
             current_gt = ground_truths[i]
             current_llm = llm_results[i]            
             current_gt_sql = current_gt["sql"]
             current_llm_sql = current_llm["sql"]
-            print(current_gt_sql)
-            print(current_llm_sql)
-            print(get_sql_jaccard_similarity(db, current_gt_sql, current_llm_sql))
-            print("--------------------------------")
+            
+            jaccard_similarity = get_jaccard_similarity(db, current_gt_sql, current_llm_sql)
+            precision, recall = get_precision_recall(db, current_gt_sql, current_llm_sql)
+            print(f"Precision: {precision}")
+            print(f"Recall: {recall}")
+            sum_similarity += jaccard_similarity
+        print(f"Similarity: {sum_similarity / len(ground_truths)}")
             
