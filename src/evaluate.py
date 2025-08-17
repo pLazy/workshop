@@ -57,8 +57,8 @@ def get_found_elems(source_df, target_df):
 
 
 def get_precision_recall(gt_df, llm_df):
-    precision = get_found_elems(llm_df, gt_df)
-    recall = get_found_elems(gt_df, llm_df)
+    precision = get_found_elems(gt_df, llm_df)
+    recall = get_found_elems(llm_df, gt_df)
     return precision, recall 
 
 
