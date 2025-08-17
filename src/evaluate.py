@@ -30,33 +30,7 @@ def get_precision_recall(db, gt_query, llm_query):
     
     precision = get_found_elems(pd.DataFrame(llm_results), pd.DataFrame(gt_results))
     recall = get_found_elems(pd.DataFrame(gt_results), pd.DataFrame(llm_results))
-    return precision, recall
-    """ gt_df = pd.DataFrame(gt_results)
-    llm_df = pd.DataFrame(llm_results)
-    common_columns = set(gt_df.columns).intersection(set(llm_df.columns))
-    all_columns = set(gt_df.columns).union(set(llm_df.columns))
-    gt_columns = set(gt_df.columns)
-    if common_columns != gt_columns:
-        return 0
-    else:
-        gt_list = list(map(tuple, gt_df.itertuples(index=False)))
-        llm_list = list(map(tuple, llm_df[gt_df.columns].itertuples(index=False)))
-        
-        llm_set = set(llm_list)
-        
-        # Count matching rows (considering duplicates)
-        matching_rows_count = sum(1 for row in gt_list if row in llm_set)
-        print(matching_rows_count)
-        print(len(gt_list))
-        # Calculate precision
-        if len(gt_list) == 0:
-            return 1.0 if len(llm_list) == 0 else 0.0
-        else:
-            return matching_rows_count / len(gt_list) """
-        
-        
-    
-
+    return precision, recall 
 
 
 
@@ -107,6 +81,7 @@ if __name__ == "__main__":
     
     with db_loader as db:
         sum_similarity = 0
+        sum_f1_score = 0
         for i in range(len(ground_truths)):
             current_gt = ground_truths[i]
             current_llm = llm_results[i]            
@@ -115,8 +90,12 @@ if __name__ == "__main__":
             
             jaccard_similarity = get_jaccard_similarity(db, current_gt_sql, current_llm_sql)
             precision, recall = get_precision_recall(db, current_gt_sql, current_llm_sql)
-            print(f"Precision: {precision}")
-            print(f"Recall: {recall}")
+            if precision + recall == 0:
+                f1_score = 0  # Avoid division by zero
+            else:
+                f1_score = 2 * (precision * recall) / (precision + recall)
             sum_similarity += jaccard_similarity
+            sum_f1_score += f1_score
         print(f"Similarity: {sum_similarity / len(ground_truths)}")
+        print(f"F1 Score: {sum_f1_score / len(ground_truths)}")
             
