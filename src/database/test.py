@@ -206,3 +206,52 @@ df2 = pd.DataFrame([
 df1.merge(df2, on='name', how='inner')
 
 # %%
+
+import sqlparse
+from difflib import SequenceMatcher
+
+def extract_columns(query):
+    parsed = sqlparse.parse(query)[0]
+    tokens = [t for t in parsed.tokens if not t.is_whitespace]
+    cols = []
+    inside_select = False
+    for token in tokens:
+        if token.ttype is sqlparse.tokens.DML and token.value.upper() == "SELECT":
+            inside_select = True
+        elif inside_select and token.ttype is sqlparse.tokens.Keyword and token.value.upper() == "FROM":
+            break
+        elif inside_select:
+            cols.extend([str(c).strip() for c in token.flatten() if c.ttype is None])
+    return [c for c in cols if c not in [","]]
+
+def map_columns(query1, query2):
+    cols1 = extract_columns(query1)
+    cols2 = extract_columns(query2)
+    mapping = []
+    for c1 in cols1:
+        best = max(cols2, key=lambda c2: SequenceMatcher(None, c1, c2).ratio())
+        mapping.append((c1, best))
+    return mapping
+
+q1 = "SELECT p.player_id, p.name, t.team_id, t.name AS team_name FROM player p JOIN team t ON p.team_id = t.team_id"
+q2 = "SELECT pl.id AS player_id, pl.name AS player_name, tm.id AS team_id, tm.name FROM players pl JOIN teams tm ON pl.team_id = tm.id"
+
+print(q1)
+print(map_columns(q1, q2))
+print(map_columns(q2, q1))
+# %%
+
+parsed = sqlparse.parse(q1)[0]
+print(parsed)
+# %%
+
+#tokens = [t for t in parsed.tokens if not t.is_whitespace]
+
+for token in parsed.tokens:
+
+    print(token)
+# %%
+print(parsed[2])
+
+
+# %%

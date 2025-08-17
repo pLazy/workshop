@@ -3,7 +3,39 @@ import json
 import os
 from pathlib import Path
 import pandas as pd
+from difflib import SequenceMatcher
 
+
+def get_dfs(db, gt_query, llm_query):
+    gt_results = db.execute_query(gt_query)
+    llm_results = db.execute_query(llm_query)
+    gt_df = pd.DataFrame(gt_results)
+    llm_df = pd.DataFrame(llm_results)
+    mapping = get_column_mapping(llm_df.columns, gt_df.columns)
+    llm_df = get_df_with_mapped_columns(llm_df, mapping)
+    return gt_df, llm_df
+
+def get_column_mapping(source_columns: list, target_columns: list, threshold: float = 0.6):
+    """
+    Returns a mapping of source columns to target columns.
+    This can be better implemented using a sql parser, and checking the column names in the select statement.
+    """
+    mapping = {}
+    for c1 in source_columns:
+        if c1 in target_columns:
+            mapping[c1] = c1
+        else:
+            best_match = max(target_columns, key=lambda c2: SequenceMatcher(None, c1, c2).ratio())
+            if SequenceMatcher(None, c1, best_match).ratio() > threshold:
+                mapping[c1] = best_match
+    return mapping
+
+
+def get_df_with_mapped_columns(df, mapping):
+    """
+    Returns a dataframe with the columns mapped to the target columns.
+    """
+    return df.rename(columns=mapping)
 
 def get_found_elems(source_df, target_df):
     """
@@ -24,23 +56,15 @@ def get_found_elems(source_df, target_df):
         return matching_rows_count/len(target_list)
 
 
-def get_precision_recall(db, gt_query, llm_query):
-    gt_results = db.execute_query(gt_query)
-    llm_results = db.execute_query(llm_query)
-    
-    precision = get_found_elems(pd.DataFrame(llm_results), pd.DataFrame(gt_results))
-    recall = get_found_elems(pd.DataFrame(gt_results), pd.DataFrame(llm_results))
+def get_precision_recall(gt_df, llm_df):
+    precision = get_found_elems(llm_df, gt_df)
+    recall = get_found_elems(gt_df, llm_df)
     return precision, recall 
 
 
 
-def get_jaccard_similarity(db, gt_query, llm_query):
+def get_jaccard_similarity(gt_df, llm_df):
     try:
-        gt_results = db.execute_query(gt_query)
-        llm_results = db.execute_query(llm_query)
-        
-        gt_df = pd.DataFrame(gt_results)
-        llm_df = pd.DataFrame(llm_results)
         common_columns = list(set(gt_df.columns).intersection(set(llm_df.columns)))
         all_columns = list(set(gt_df.columns).union(set(llm_df.columns)))
         gt_common = gt_df[common_columns]
@@ -87,11 +111,14 @@ if __name__ == "__main__":
             current_llm = llm_results[i]            
             current_gt_sql = current_gt["sql"]
             current_llm_sql = current_llm["sql"]
+            gt_df, llm_df = get_dfs(db, current_gt_sql, current_llm_sql)
             
-            jaccard_similarity = get_jaccard_similarity(db, current_gt_sql, current_llm_sql)
-            precision, recall = get_precision_recall(db, current_gt_sql, current_llm_sql)
+            jaccard_similarity = get_jaccard_similarity(gt_df, llm_df)
+            precision, recall = get_precision_recall(gt_df, llm_df)
+            print(f"Precision: {precision}")
+            print(f"Recall: {recall}")
             if precision + recall == 0:
-                f1_score = 0  # Avoid division by zero
+                f1_score = 0 
             else:
                 f1_score = 2 * (precision * recall) / (precision + recall)
             sum_similarity += jaccard_similarity
