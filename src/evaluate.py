@@ -15,7 +15,7 @@ def get_dfs(db, gt_query, llm_query):
     llm_df = get_df_with_mapped_columns(llm_df, mapping)
     return gt_df, llm_df
 
-def get_column_mapping(source_columns: list, target_columns: list, threshold: float = 0.7):
+def get_column_mapping(source_columns: list, target_columns: list, threshold: float = 0.8):
     """
     Returns a mapping of source columns to target columns.
     This can be better implemented using a sql parser, and checking the column names in the select statement.
@@ -25,9 +25,12 @@ def get_column_mapping(source_columns: list, target_columns: list, threshold: fl
         if c1 in target_columns:
             mapping[c1] = c1
         else:
-            best_match = max(target_columns, key=lambda c2: SequenceMatcher(None, c1, c2).ratio())
-            if SequenceMatcher(None, c1, best_match).ratio() > threshold:
-                mapping[c1] = best_match
+            # Find the best match by comparing lowercase versions of column names
+            best_match_score = 0
+            for c2 in target_columns:
+                score = SequenceMatcher(None, c1.lower(), c2.lower()).ratio()
+                if score > best_match_score and score > threshold:
+                    mapping[c1] = c2
     return mapping
 
 
@@ -94,6 +97,31 @@ def get_jaccard_similarity(gt_df, llm_df):
     
 
 
+def soft_f1_score(gt_df, llm_df):
+    common_columns = list(set(gt_df.columns).intersection(set(llm_df.columns)))
+    gt_common = gt_df[common_columns]
+    llm_common = llm_df[common_columns]
+    
+    gt_list = list(map(tuple, gt_common.itertuples(index=False)))
+    llm_list = list(map(tuple, llm_common.itertuples(index=False)))
+    
+    gt_set = set(gt_list)
+    llm_set = set(llm_list)
+    
+    # Why not use the intersection of sets or dataframes? because it doesnt work with duplicates
+    matching_rows_count = sum(1 for row in gt_list if row in llm_set)
+    matching_rows_count_llm = sum(1 for row in llm_list if row in gt_set)
+    
+    precision = (matching_rows_count * len(common_columns)) / (len(gt_common) * len(gt_df.columns)) if len(gt_df.columns) > 0 else 0
+    recall = (matching_rows_count_llm * len(common_columns)) / (len(llm_common) * len(llm_df.columns)) if len(llm_df.columns) > 0 else 0
+    
+    print(f"Precision: {precision}, Recall: {recall}")
+    if precision + recall == 0:
+        return 0
+    else:
+        return 2 * (precision * recall) / (precision + recall)
+
+
 if __name__ == "__main__":
     sqlite_path = "/Users/andirexha/Documents/presentations/20.08.2025/db_creation/baseball/baseball.db"
     db_loader = DatabaseLoader(sqlite_path)
@@ -106,6 +134,7 @@ if __name__ == "__main__":
         sum_similarity = 0
         sum_f1_score = 0
         not_executed = 0
+        sum_soft_f1_score = 0
         for i in range(len(ground_truths)):
             current_gt = ground_truths[i]
             current_llm = llm_results[i]            
@@ -114,12 +143,14 @@ if __name__ == "__main__":
                 current_llm_sql = current_llm["generated_query"]
                 gt_df, llm_df = get_dfs(db, current_gt_sql, current_llm_sql)
                 jaccard_similarity = get_jaccard_similarity(gt_df, llm_df)
-                precision, recall = get_precision_recall(gt_df, llm_df)
+                precision, recall = get_precision_recall(gt_df, llm_df)            
+                sum_soft_f1_score += soft_f1_score(gt_df, llm_df)
             except Exception as e:
                 jaccard_similarity = 0
                 not_executed += 1
                 precision = 0
                 recall = 0
+                sum_soft_f1_score += 0
                 continue
             
             if precision + recall == 0:
@@ -130,5 +161,6 @@ if __name__ == "__main__":
             sum_f1_score += f1_score
         print(f"Jaccard Similarity / Partial accuracy: {sum_similarity / len(ground_truths)}")
         print(f"F1 Score: {sum_f1_score / len(ground_truths)}")
+        print(f"Soft F1 Score: {sum_soft_f1_score / len(ground_truths)}")
         print(f"Not executed: {not_executed}")
         print(f"Total: {len(ground_truths)}")
