@@ -15,7 +15,7 @@ def get_dfs(db, gt_query, llm_query):
     llm_df = get_df_with_mapped_columns(llm_df, mapping)
     return gt_df, llm_df
 
-def get_column_mapping(source_columns: list, target_columns: list, threshold: float = 0.6):
+def get_column_mapping(source_columns: list, target_columns: list, threshold: float = 0.7):
     """
     Returns a mapping of source columns to target columns.
     This can be better implemented using a sql parser, and checking the column names in the select statement.
@@ -47,6 +47,8 @@ def get_found_elems(source_df, target_df):
         return 0
     else:
         target_list = list(map(tuple, target_df.itertuples(index=False)))
+        if len(target_list) == 0:
+            return 0
         source_list = list(map(tuple, source_df[target_df.columns].itertuples(index=False)))
         
         source_set = set(source_list)
@@ -88,7 +90,6 @@ def get_jaccard_similarity(gt_df, llm_df):
         else:
             return numerator / denominator
     except Exception as e:
-        print(e)
         return 0
     
 
@@ -96,27 +97,31 @@ def get_jaccard_similarity(gt_df, llm_df):
 if __name__ == "__main__":
     sqlite_path = "/Users/andirexha/Documents/presentations/20.08.2025/db_creation/baseball/baseball.db"
     db_loader = DatabaseLoader(sqlite_path)
-    p = Path("resources/evaluation/examples_queries_test.json")
-    text = p.read_text()
+    text = Path("resources/evaluation/examples_queries_test.json").read_text()
     ground_truths = json.loads(text)
-    p = Path("resources/evaluation/generated_queries.json")
-    text = p.read_text()
+    text = Path("resources/evaluation/generated_queries.json").read_text()
     llm_results = json.loads(text)
     
     with db_loader as db:
         sum_similarity = 0
         sum_f1_score = 0
+        not_executed = 0
         for i in range(len(ground_truths)):
             current_gt = ground_truths[i]
             current_llm = llm_results[i]            
-            current_gt_sql = current_gt["sql"]
-            current_llm_sql = current_llm["sql"]
-            gt_df, llm_df = get_dfs(db, current_gt_sql, current_llm_sql)
+            current_gt_sql = current_gt["query"]
+            try:
+                current_llm_sql = current_llm["generated_query"]
+                gt_df, llm_df = get_dfs(db, current_gt_sql, current_llm_sql)
+                jaccard_similarity = get_jaccard_similarity(gt_df, llm_df)
+                precision, recall = get_precision_recall(gt_df, llm_df)
+            except Exception as e:
+                jaccard_similarity = 0
+                not_executed += 1
+                precision = 0
+                recall = 0
+                continue
             
-            jaccard_similarity = get_jaccard_similarity(gt_df, llm_df)
-            precision, recall = get_precision_recall(gt_df, llm_df)
-            print(f"Precision: {precision}")
-            print(f"Recall: {recall}")
             if precision + recall == 0:
                 f1_score = 0 
             else:
@@ -125,4 +130,5 @@ if __name__ == "__main__":
             sum_f1_score += f1_score
         print(f"Similarity: {sum_similarity / len(ground_truths)}")
         print(f"F1 Score: {sum_f1_score / len(ground_truths)}")
-            
+        print(f"Not executed: {not_executed}")
+        print(f"Total: {len(ground_truths)}")
