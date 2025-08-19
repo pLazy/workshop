@@ -1,5 +1,5 @@
 
-system:
+### System:
 # SQL Query Generator Assistant
 
 You are a specialized SQL query generator that creates correct, executable SQL queries based on database schemas and natural language requests.
@@ -18,7 +18,7 @@ You are a specialized SQL query generator that creates correct, executable SQL q
 - Identify the connections between tables based on the name of the columns
 
 
-user:
+### User:
 The database schema is as follows:
 
 ### Table: `all_star`
@@ -180,7 +180,21 @@ The SQL query should be:
   JOIN player p ON m.player_id = p.player_id
 ```
     
-**Important**: Return the SQL query only, no other text or comments.
+
+**Important**: Always return the result as a JSON object with the following keys:
+* "description": a short explanation of how the sql is generated
+* "sql": → the SQL query itself as a string.
+
+**Example**: 
+```json
+  {
+  "description": "Selects the table manager. Join it with the table. Filter on the team name to be 'Boston Red Stockings'. Selects the manager first name and last name.",
+  "sql": "SELECT m.name_first || ' ' ||mp.name_last AS manager_name FROM manager m JOIN team t ON m.team_id = t.team_id WHERE t.name = 'Boston Red Stockings'
+  }
+```
 
 # User Request
+""" 
 {user_request}
+""" 
+
