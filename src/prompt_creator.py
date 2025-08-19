@@ -91,8 +91,8 @@ The SQL query should be:
 **Example**: 
 ```json
   {{
-  "description": "Selects the table manager. Join it with the table. Filter on the team name to be 'Boston Red Stockings'. Selects the manager first name and last name.",
-  "sql": "SELECT m.name_first || ' ' ||mp.name_last AS manager_name FROM manager m JOIN team t ON m.team_id = t.team_id WHERE t.name = 'Boston Red Stockings'
+  "description": "Select the table 'manager'. Join it with the table 'team'. Filter on the team name to be 'Boston Red Stockings'. Selects the manager first name and last name and concatenate them.",
+  "sql": "SELECT m.name_first || ' ' ||mp.name_last AS manager_name FROM manager m JOIN team t ON m.team_id = t.team_id WHERE t.name = 'Boston Red Stockings'"
   }}
 ```
 
