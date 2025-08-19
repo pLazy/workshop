@@ -128,7 +128,7 @@ if __name__ == "__main__":
                 f1_score = 2 * (precision * recall) / (precision + recall)
             sum_similarity += jaccard_similarity
             sum_f1_score += f1_score
-        print(f"Similarity: {sum_similarity / len(ground_truths)}")
+        print(f"Jaccard Similarity / Partial accuracy: {sum_similarity / len(ground_truths)}")
         print(f"F1 Score: {sum_f1_score / len(ground_truths)}")
         print(f"Not executed: {not_executed}")
         print(f"Total: {len(ground_truths)}")

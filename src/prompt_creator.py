@@ -111,6 +111,6 @@ if __name__ == "__main__":
     db_schema = DbSchema(db_loader)
     md_str = db_schema.get_tables_info()
     prompt = create_prompt(md_str)
-    with open("prompt1.md", "w", encoding="utf-8") as f:
+    with open("prompt.md", "w", encoding="utf-8") as f:
         f.write(prompt)
  

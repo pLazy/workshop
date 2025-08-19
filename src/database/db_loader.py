@@ -45,6 +45,14 @@ class DatabaseLoader:
         query = f"PRAGMA table_info({table_name});"
         return self.execute_query(query)
     
+    def get_foreign_keys(self, table_name: str) -> List[Dict[str, Any]]:
+        query = f"PRAGMA foreign_key_list({table_name});"
+        return self.execute_query(query)
+    
+    def get_tables(self) -> List[Dict[str, Any]]:
+        query = "SELECT name FROM sqlite_master WHERE type='table';"
+        return self.execute_query(query)
+    
     def __enter__(self):
         self.connect()
         return self

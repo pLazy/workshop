@@ -7,14 +7,14 @@ class DbSchema:
     def get_tables_info(self, is_md: bool = False) -> str:
         md_str = ""
         with self.db_loader as db:
-            tables = db.execute_query("SELECT name FROM sqlite_master WHERE type='table';")
+            tables = db.get_tables()
     
             for table in tables:
                 # Get table column information
-                current_table_info = db.execute_query(f"PRAGMA table_info({table['name']});")
+                current_table_info = db.get_table_schema(table['name'])
                 
                 # Get foreign key information
-                foreign_keys = db.execute_query(f"PRAGMA foreign_key_list({table['name']});")
+                foreign_keys = db.get_foreign_keys(table['name'])
                 
                 fk_dict = {}
                 for fk in foreign_keys:
@@ -50,9 +50,3 @@ class DbSchema:
                 md_str += "\n\n"
         return md_str
 
-
-#%%
-
-#%%
-
-#%%
