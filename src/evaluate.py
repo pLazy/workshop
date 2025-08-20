@@ -61,10 +61,13 @@ def get_found_elems(source_df, target_df):
         return matching_rows_count/len(target_list)
 
 
-def get_precision_recall(gt_df, llm_df):
+def get_f1(gt_df, llm_df):
     precision = get_found_elems(gt_df, llm_df)
     recall = get_found_elems(llm_df, gt_df)
-    return precision, recall 
+    if precision + recall == 0:
+        return 0
+    else:
+        return 2 * (precision * recall) / (precision + recall)
 
 
 
@@ -115,7 +118,6 @@ def soft_f1_score(gt_df, llm_df):
     precision = (matching_rows_count * len(common_columns)) / (len(gt_common) * len(gt_df.columns)) if len(gt_df.columns) > 0 else 0
     recall = (matching_rows_count_llm * len(common_columns)) / (len(llm_common) * len(llm_df.columns)) if len(llm_df.columns) > 0 else 0
     
-    print(f"Precision: {precision}, Recall: {recall}")
     if precision + recall == 0:
         return 0
     else:
@@ -142,21 +144,12 @@ if __name__ == "__main__":
             try:
                 current_llm_sql = current_llm["generated_query"]
                 gt_df, llm_df = get_dfs(db, current_gt_sql, current_llm_sql)
-                jaccard_similarity = get_jaccard_similarity(gt_df, llm_df)
-                precision, recall = get_precision_recall(gt_df, llm_df)            
-                sum_soft_f1_score += soft_f1_score(gt_df, llm_df)
             except Exception as e:
-                jaccard_similarity = 0
                 not_executed += 1
-                precision = 0
-                recall = 0
-                sum_soft_f1_score += 0
                 continue
-            
-            if precision + recall == 0:
-                f1_score = 0 
-            else:
-                f1_score = 2 * (precision * recall) / (precision + recall)
+            jaccard_similarity = get_jaccard_similarity(gt_df, llm_df)
+            f1_score = get_f1(gt_df, llm_df)            
+            sum_soft_f1_score += soft_f1_score(gt_df, llm_df)
             sum_similarity += jaccard_similarity
             sum_f1_score += f1_score
         print(f"Jaccard Similarity / Partial accuracy: {sum_similarity / len(ground_truths)}")
